@@ -1,0 +1,110 @@
+#include <Servo.h>
+#include <LiquidCrystal.h>
+
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+
+int val;
+int tempPin = A1;  // Changed to A1 for temperature sensor
+const int pingpin = 7;
+const int ledpin1 = 13;
+const int ledpin2 = 10;
+const int bulb = 8;
+const int ledpin3 = 6;
+
+long duration, inches, cm;
+
+Servo myservo;
+int value;
+double angle;
+
+void setup() {
+  lcd.begin(16, 2);
+  Serial.begin(9600);
+  myservo.attach(9);
+  pinMode(ledpin1, OUTPUT);
+  pinMode(ledpin2, OUTPUT);
+  pinMode(ledpin3, OUTPUT);
+  pinMode(bulb, OUTPUT);
+}
+
+void loop() {
+  lcd.setCursor(0, 0);
+  val = analogRead(tempPin);
+  float mv = (val / 1024.0) * 5000;
+  float cel = mv / 10;
+  float farh = (cel * 9) / 5 + 32;
+
+  lcd.print("TEMPERATURE = ");
+  lcd.print(cel);
+  lcd.print("*C");
+  lcd.println();
+
+  if (cel > 100) {
+    Serial.println("High Temperature! Yellow Led glows");
+    digitalWrite(ledpin3, HIGH);
+    digitalWrite(bulb, LOW);
+  } else if (cel < 20) {
+    Serial.println("Low Temperature! Bulb is on to raise temperature");
+    digitalWrite(bulb, HIGH);
+    digitalWrite(ledpin3, LOW);
+  }
+
+  pinMode(pingpin, OUTPUT);
+  digitalWrite(pingpin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(pingpin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(pingpin, LOW);
+  pinMode(pingpin, INPUT);
+  duration = pulseIn(pingpin, HIGH);
+  inches = microsecondsToInches(duration);
+  cm = microsecondsToCentimeters(duration);
+
+  if (cm <=3 || cm >=100) {
+    Serial.println("Object out of range RED LED GLOWS");
+    digitalWrite(ledpin1, HIGH);
+    digitalWrite(ledpin2, LOW);
+    // Additional conditions for servo and blue LED
+    myservo.write(0);               // Set servo to 0 degrees
+    digitalWrite(ledpin2, LOW);     // Turn off the blue LED
+  } else {
+    Serial.print(inches);
+    Serial.print("in, ");
+    Serial.print(cm);
+    Serial.println("cm");
+    if (cm >= 3 && cm <= 100) {
+      Serial.println("Object is in range of 3-300cm BLUE LED GLOWS AND MOTOR STARTS WORKING");
+      digitalWrite(ledpin2, HIGH);
+      digitalWrite(ledpin1, LOW);
+      // Additional conditions for servo and blue LED
+      if (cm < 50) {
+        myservo.write(90);           // Set servo to 90 degrees
+        digitalWrite(ledpin2, HIGH); // Turn on the blue LED
+      } else {
+        myservo.write(0);            // Set servo to 0 degrees
+        digitalWrite(ledpin2, LOW);  // Turn off the blue LED
+      }
+      delay(1000);
+      value = analogRead(A0);
+      angle = map(value, 0, 1023, 0, 180);
+      Serial.println(angle);
+      myservo.write(angle);
+      delay(15);
+      if (cel >= 20 && cel <= 30) {
+        Serial.println("Normal Temperature!");
+        digitalWrite(ledpin3, LOW);
+        digitalWrite(bulb, LOW);
+        delay(1000);
+      }
+    }
+  }
+}
+
+long microsecondsToInches(long microseconds) {
+  return microseconds / 74 / 2;
+}
+
+long microsecondsToCentimeters(long microseconds) {
+  return microseconds / 29 / 2;
+}
+
