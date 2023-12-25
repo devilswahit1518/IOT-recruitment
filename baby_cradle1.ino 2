@@ -1,0 +1,65 @@
+#include <Servo.h>
+
+#define PIR_SENSOR_PIN 2
+#define SERVO_PIN 9
+#define TMP36_PIN A1  // Analog pin for TMP36 temperature sensor
+#define MOISTURE_SENSOR_PIN A0
+#define PIEZO_BUZZER_PIN 10
+#define LED_PIN 13
+
+Servo servo;
+
+void setup() {
+  Serial.begin(9600);
+  servo.attach(SERVO_PIN);
+  pinMode(PIR_SENSOR_PIN, INPUT);
+  pinMode(MOISTURE_SENSOR_PIN, INPUT);
+  pinMode(PIEZO_BUZZER_PIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+}
+
+void loop() {
+  // PIR Sensor
+  int pirValue = digitalRead(PIR_SENSOR_PIN);
+  if (pirValue == LOW) {
+    // No motion detected, turn on piezo for 1 second and LED
+    tone(PIEZO_BUZZER_PIN, 1000, 500);  // Activate buzzer for 0.5 seconds
+    digitalWrite(LED_PIN, HIGH);  // Turn on the LED
+  } else {
+    // Motion detected, move servo and turn off piezo
+    servo.write(90);  // Set servo to 90 degrees
+    delay(1000);      // Delay for 1 second
+    servo.write(0);   // Return servo to 0 degrees
+    noTone(PIEZO_BUZZER_PIN);  // Turn off the buzzer
+    digitalWrite(LED_PIN, HIGH);  // Turn on the LED
+  }
+
+  // TMP36 Temperature Sensor
+  int tmp36Value = analogRead(TMP36_PIN);
+  float voltage = tmp36Value * 0.0048828125;  // Convert to voltage
+  float temperature = (voltage - 0.5) * 100.0;  // Convert to Celsius
+
+  // Moisture Sensor
+  int moistureValue = analogRead(MOISTURE_SENSOR_PIN);
+
+  // Check temperature, moisture, and PIR, and activate buzzer, start motor, and turn on LED
+  if ((temperature >= 30) || (moistureValue >= 300) || (pirValue == LOW)) {
+    tone(PIEZO_BUZZER_PIN, 1000, 500);  // Activate buzzer for 0.5 seconds
+    digitalWrite(LED_PIN, HIGH);  // Turn on the LED
+    servo.write(180);  // Start rotating the servo continuously
+  } else {
+    noTone(PIEZO_BUZZER_PIN);  // Turn off the buzzer
+    digitalWrite(LED_PIN, LOW);  // Turn off the LED
+    servo.write(0);  // Stop the servo motor
+  }
+
+  // Display data
+  Serial.print("Temperature: ");
+  Serial.print(temperature);
+  Serial.print(" °C, Moisture: ");
+  Serial.print(moistureValue);
+  Serial.println(" (0-1023), PIR: " + String(pirValue));
+
+  delay(1000);  // Delay for 1 second
+}
+
